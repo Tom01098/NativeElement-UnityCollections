@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Unity.Collections;
@@ -28,18 +28,21 @@ public unsafe struct NativeElement<T> : IDisposable where T : struct
     // The allocator label
     Allocator m_AllocatorLabel;
 
-    // Constructor
-    public NativeElement(Allocator label)
+    // Constructor which only takes a label and then calls the main constructor with an instance of T
+    public NativeElement(Allocator label) : this(new T(), label) { }
+
+    // Main constructor logic that takes an element and a label
+    public NativeElement(T element, Allocator label)
     {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
         // Blittable check
         if (!UnsafeUtility.IsBlittable<T>())
             throw new ArgumentException(typeof(T) + " used in NativeElement must be blittable");
-#endif
 
         // Label check
         if (label <= Allocator.None)
             throw new ArgumentException("NativeElement must be allocated using Job, TempJob or Persistent");
+#endif
 
         // Label set
         m_AllocatorLabel = label;
@@ -47,13 +50,13 @@ public unsafe struct NativeElement<T> : IDisposable where T : struct
         // Allocate memory for a single T
         m_ptr = UnsafeUtility.Malloc(UnsafeUtility.SizeOf<T>(), 1, label);
 
-        // Create DisposeSentinel and AtomicSafetyHandle
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
+        // Create DisposeSentinel and AtomicSafetyHandle
         DisposeSentinel.Create(out m_Safety, out m_DisposeSentinel, 0);
 #endif
 
         // Create element to avoid unitialised data
-        Element = new T();
+        Element = element;
     }
 
     // Property for the Element stored
@@ -61,8 +64,8 @@ public unsafe struct NativeElement<T> : IDisposable where T : struct
     {
         get
         {
-            // Read check
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
+            // Read check
             AtomicSafetyHandle.CheckReadAndThrow(m_Safety);
 #endif
 
@@ -71,8 +74,8 @@ public unsafe struct NativeElement<T> : IDisposable where T : struct
         }
         set
         {
-            // Write check
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
+            // Write check
             AtomicSafetyHandle.CheckWriteAndThrow(m_Safety);
 #endif
 
